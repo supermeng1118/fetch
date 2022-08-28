@@ -9,28 +9,30 @@ const DefaultColors = ['brown', 'yellow', 'red', 'blue', 'green'];
 const PrimaryColors = ['red', 'blue', 'yellow'];
 
 // Your retrieve function plus any additional functions go here ...
-async function retrieve({ page = DefaultPage, colors=[] } = {}) {
-    // const params = {
-    //     limit,
-    //     offset,
-    //     color: color.map((obj) => {
-    //         return `color[]=${obj}`
-    //     })
-    // }
-
+async function retrieve({ page = DefaultPage, colors = DefaultColors } = {}) {
     const url = URI(window.path).query({
         limit: DefaultLimit,
         offset: (page - 1) * DefaultLimit,
-        color: colors
+        'color[]': colors
     }).toString();
 
-    console.log('url', url);
+    const response = await fetch(url).then((res) => {
+        if (res.status >= 400 && res.status < 600) {
+          throw new Error("Bad response from server");
+        }
+        return res;
+    }).catch((error) => {
+      console.log(error);
+    });
 
-    const response = await fetch(url);
+    if (!response) {
+        return null;
+    }
+
     const data = await response.json();
     const output = {
         previousPage: page === 1 ? null : page - 1,
-        nextPage: page * DefaultLimit >= 500 ? null : page + 1,
+        nextPage: page * DefaultLimit < 500 && data.length > 0 ? page + 1 : null,
         ids: data.map((x) => x.id),
         open: data.filter((x) => x.disposition === 'open').map((x) => ({
             ...x,
@@ -39,11 +41,7 @@ async function retrieve({ page = DefaultPage, colors=[] } = {}) {
         closedPrimaryCount: data.filter((x) => x.disposition === 'closed').filter((x) => PrimaryColors.includes(x.color)).length
     };
     
-    console.log('output open', output.open);
-
     return output
-
-    // url.URLSearchParams(params);
 }
 
 export default retrieve;
